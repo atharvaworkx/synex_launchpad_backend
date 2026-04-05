@@ -94,7 +94,7 @@ class ContactEmailService:
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[settings.CONTACT_EMAIL_TO],
                 html_message=html_message,
-                fail_silently=False,
+                fail_silently=True,
             )
 
             print(f"Email sent successfully to {settings.CONTACT_EMAIL_TO}")
@@ -181,7 +181,7 @@ class ContactEmailService:
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[customer_email],
                 html_message=html_message,
-                fail_silently=False,
+                fail_silently=True,
             )
 
             print(f"Confirmation email sent to {customer_email}")

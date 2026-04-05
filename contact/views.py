@@ -44,54 +44,70 @@ def submit_contact_form(request):
         }
     }
     """
-    if request.method == 'POST':
-        # Validate and save the contact submission
-        serializer = ContactSubmissionSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            # Save to database
-            contact = serializer.save()
+    try:
+        if request.method == 'POST':
+            # Validate and save the contact submission
+            serializer = ContactSubmissionSerializer(data=request.data)
             
-            # Prepare email data
-            email_data = {
-                'name': contact.name,
-                'email': contact.email,
-                'company': contact.company,
-                'message': contact.message,
-            }
-            
-            # Send email to company
-            company_email_sent = ContactEmailService.send_contact_email(email_data)
-            
-            # Send confirmation email to customer
-            customer_email_sent = ContactEmailService.send_confirmation_email(
-                contact.email,
-                contact.name
-            )
-            
-            response_data = {
-                'success': True,
-                'message': 'Thank you for your submission. We will respond within 24 hours.',
-                'data': serializer.data,
-                'email_status': {
-                    'company_email_sent': company_email_sent,
-                    'customer_confirmation_sent': customer_email_sent,
+            if serializer.is_valid():
+                # Save to database
+                contact = serializer.save()
+                
+                # Prepare email data
+                email_data = {
+                    'name': contact.name,
+                    'email': contact.email,
+                    'company': contact.company,
+                    'message': contact.message,
                 }
-            }
+                
+                # Try to send emails but don't fail if they don't send
+                try:
+                    company_email_sent = ContactEmailService.send_contact_email(email_data)
+                except Exception as e:
+                    print(f"Error sending company email: {str(e)}")
+                    company_email_sent = False
+                
+                try:
+                    customer_email_sent = ContactEmailService.send_confirmation_email(
+                        contact.email,
+                        contact.name
+                    )
+                except Exception as e:
+                    print(f"Error sending confirmation email: {str(e)}")
+                    customer_email_sent = False
+                
+                response_data = {
+                    'success': True,
+                    'message': 'Thank you for your submission. We will respond within 24 hours.',
+                    'data': serializer.data,
+                    'email_status': {
+                        'company_email_sent': company_email_sent,
+                        'customer_confirmation_sent': customer_email_sent,
+                    }
+                }
+                
+                return Response(response_data, status=status.HTTP_201_CREATED)
             
-            return Response(response_data, status=status.HTTP_201_CREATED)
+            else:
+                return Response({
+                    'success': False,
+                    'message': 'Validation failed',
+                    'errors': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
         
-        else:
-            return Response({
-                'success': False,
-                'message': 'Validation failed',
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'success': False,
+            'message': 'Method not allowed'
+        }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
     
-    return Response({
-        'success': False,
-        'message': 'Method not allowed'
-    }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    except Exception as e:
+        print(f"Unexpected error in submit_contact_form: {str(e)}")
+        return Response({
+            'success': False,
+            'message': 'An unexpected error occurred. Please try again later.',
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
