@@ -41,6 +41,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# Ensure CORS Headers are sent for all responses
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+
 # CSRF Configuration
 CSRF_TRUSTED_ORIGINS = [
     'https://synex-launchpad-three.vercel.app',
@@ -114,8 +117,16 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS Configuration - Allow all origins for REST API
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    'https://synex-launchpad-three.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+]
+CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
