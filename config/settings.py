@@ -41,8 +41,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CSRF Configuration - Disable for API
-CSRF_TRUSTED_ORIGINS = ['*']
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = [
+    'https://synex-launchpad-three.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173',
+]
 
 ROOT_URLCONF = 'config.urls'
 
