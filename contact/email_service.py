@@ -1,10 +1,13 @@
 """
 Email service for sending contact form submissions via SMTP
 """
-from django.core.mail import send_mail
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from django.conf import settings
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ContactEmailService:
@@ -12,181 +15,126 @@ class ContactEmailService:
 
     @staticmethod
     def send_contact_email(contact_data):
-        """
-        Send contact form details via email to the company email
-
-        Args:
-            contact_data (dict): Dictionary containing name, email, company, and message
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
+        """Send contact form details via email to the company email"""
         try:
-            subject = f"New Contact Submission from {contact_data['name']}"
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = f"New Contact Submission from {contact_data['name']}"
+            msg['From'] = settings.EMAIL_HOST_USER
+            msg['To'] = settings.CONTACT_EMAIL_TO
+            msg['Reply-To'] = contact_data['email']
             
-            # Email template with HTML formatting
-            html_message = f"""
-            <html>
-                <head>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; color: #333; }}
-                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                        .header {{ background-color: #0066cc; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
-                        .header h2 {{ margin: 0; }}
-                        .content {{ background-color: #f9f9f9; padding: 20px; border-radius: 5px; }}
-                        .field {{ margin-bottom: 20px; }}
-                        .label {{ font-weight: bold; color: #0066cc; margin-bottom: 5px; }}
-                        .value {{ color: #555; padding: 10px; background-color: white; border-left: 3px solid #0066cc; }}
-                        .message-text {{ white-space: pre-wrap; }}
-                        .footer {{ margin-top: 20px; font-size: 12px; color: #999; text-align: center; }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h2>New Contact Form Submission</h2>
-                        </div>
-                        <div class="content">
-                            <div class="field">
-                                <div class="label">Name:</div>
-                                <div class="value">{contact_data['name']}</div>
-                            </div>
-                            <div class="field">
-                                <div class="label">Email:</div>
-                                <div class="value"><a href="mailto:{contact_data['email']}">{contact_data['email']}</a></div>
-                            </div>
-                            <div class="field">
-                                <div class="label">Company:</div>
-                                <div class="value">{contact_data.get('company', 'Not provided') or 'Not provided'}</div>
-                            </div>
-                            <div class="field">
-                                <div class="label">Message:</div>
-                                <div class="value message-text">{contact_data['message']}</div>
-                            </div>
-                        </div>
-                        <div class="footer">
-                            <p>This is an automated message from the Synex Innovations contact form.</p>
-                            <p>Reply to: {contact_data['email']}</p>
-                        </div>
-                    </div>
-                </body>
-            </html>
+            # Plain text version
+            text = f"""
+New Contact Form Submission
+
+Name: {contact_data['name']}
+Email: {contact_data['email']}
+Company: {contact_data.get('company', 'Not provided')}
+
+Message:
+{contact_data['message']}
+
+---
+Reply to: {contact_data['email']}
             """
-
-            plain_message = f"""
-            New Contact Form Submission
             
-            Name: {contact_data['name']}
-            Email: {contact_data['email']}
-            Company: {contact_data.get('company', 'Not provided') or 'Not provided'}
-            
-            Message:
-            {contact_data['message']}
-            
-            ---
-            This is an automated message from the Synex Innovations contact form.
+            # HTML version
+            html = f"""
+<html>
+<body style="font-family: Arial, sans-serif;">
+    <h2 style="color: #0066cc;">New Contact Form Submission</h2>
+    <p><strong>Name:</strong> {contact_data['name']}</p>
+    <p><strong>Email:</strong> <a href="mailto:{contact_data['email']}">{contact_data['email']}</a></p>
+    <p><strong>Company:</strong> {contact_data.get('company', 'Not provided')}</p>
+    <p><strong>Message:</strong></p>
+    <p style="background: #f5f5f5; padding: 15px; border-left: 3px solid #0066cc;">
+        {contact_data['message']}
+    </p>
+</body>
+</html>
             """
-
-            # Send email
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[settings.CONTACT_EMAIL_TO],
-                html_message=html_message,
-                fail_silently=True,
-            )
-
-            print(f"Email sent successfully to {settings.CONTACT_EMAIL_TO}")
+            
+            part1 = MIMEText(text, 'plain')
+            part2 = MIMEText(html, 'html')
+            msg.attach(part1)
+            msg.attach(part2)
+            
+            # Send via SMTP
+            logger.info(f"Connecting to {settings.EMAIL_HOST}:{settings.EMAIL_PORT}")
+            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=30)
+            server.set_debuglevel(1)  # Enable debug output
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            
+            logger.info(f"Logging in as {settings.EMAIL_HOST_USER}")
+            server.login(settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)
+            
+            logger.info(f"Sending email to {settings.CONTACT_EMAIL_TO}")
+            server.send_message(msg)
+            server.quit()
+            
+            logger.info(f"Email sent successfully to {settings.CONTACT_EMAIL_TO}")
             return True
-
+            
         except Exception as e:
-            print(f"Error sending email: {str(e)}")
+            import traceback
+            logger.error(f"Error sending email: {str(e)}")
+            logger.error(traceback.format_exc())
             return False
 
     @staticmethod
     def send_confirmation_email(customer_email, customer_name):
-        """
-        Send confirmation email to the customer
-
-        Args:
-            customer_email (str): Customer's email address
-            customer_name (str): Customer's name
-
-        Returns:
-            bool: True if email sent successfully, False otherwise
-        """
+        """Send confirmation email to the customer"""
         try:
-            subject = "We received your message - Synex Innovations"
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = "We received your message - Synex Innovations"
+            msg['From'] = settings.EMAIL_HOST_USER
+            msg['To'] = customer_email
             
-            html_message = f"""
-            <html>
-                <head>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; color: #333; }}
-                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                        .header {{ background-color: #0066cc; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
-                        .header h2 {{ margin: 0; }}
-                        .content {{ background-color: #f9f9f9; padding: 20px; border-radius: 5px; }}
-                        .btn {{ display: inline-block; margin: 20px 0; padding: 10px 20px; background-color: #0066cc; color: white; text-decoration: none; border-radius: 5px; }}
-                        .footer {{ margin-top: 20px; font-size: 12px; color: #999; text-align: center; }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h2>Thank You for Reaching Out!</h2>
-                        </div>
-                        <div class="content">
-                            <p>Hi {customer_name},</p>
-                            <p>We've successfully received your contact form submission. We appreciate your interest in Synex Innovations!</p>
-                            <p><strong>What's next?</strong></p>
-                            <ul>
-                                <li>Our team will review your inquiry shortly</li>
-                                <li>You can expect a response within 24 hours</li>
-                                <li>We'll reach out to the email address you provided: <strong>{customer_email}</strong></li>
-                            </ul>
-                            <p>If you have any urgent matters, feel free to reach out to us directly at <strong>synexinnovation@gmail.com</strong></p>
-                        </div>
-                        <div class="footer">
-                            <p>© 2024 Synex Innovations. All rights reserved.</p>
-                            <p>Pune, Maharashtra, India</p>
-                        </div>
-                    </div>
-                </body>
-            </html>
+            # Plain text version
+            text = f"""
+Hi {customer_name},
+
+Thank you for contacting Synex Innovations!
+
+We've received your message and will respond within 24 hours.
+
+Best regards,
+Synex Innovations Team
             """
-
-            plain_message = f"""
-            Thank You for Reaching Out!
             
-            Hi {customer_name},
-            
-            We've successfully received your contact form submission. We appreciate your interest in Synex Innovations!
-            
-            What's next?
-            - Our team will review your inquiry shortly
-            - You can expect a response within 24 hours
-            - We'll reach out to the email address you provided: {customer_email}
-            
-            If you have any urgent matters, feel free to reach out to us directly at synexinnovation@gmail.com
-            
-            ---
-            © 2024 Synex Innovations. All rights reserved.
+            # HTML version
+            html = f"""
+<html>
+<body style="font-family: Arial, sans-serif;">
+    <h2 style="color: #0066cc;">Thank You for Reaching Out!</h2>
+    <p>Hi {customer_name},</p>
+    <p>We've received your message and will respond within 24 hours.</p>
+    <p>Best regards,<br><strong>Synex Innovations Team</strong></p>
+</body>
+</html>
             """
-
-            send_mail(
-                subject=subject,
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[customer_email],
-                html_message=html_message,
-                fail_silently=True,
-            )
-
-            print(f"Confirmation email sent to {customer_email}")
+            
+            part1 = MIMEText(text, 'plain')
+            part2 = MIMEText(html, 'html')
+            msg.attach(part1)
+            msg.attach(part2)
+            
+            # Send via SMTP
+            server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT, timeout=30)
+            server.starttls()
+            server.login(settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            
+            logger.info(f"Confirmation email sent to {customer_email}")
             return True
-
+            
         except Exception as e:
-            print(f"Error sending confirmation email: {str(e)}")
+            import traceback
+            logger.error(f"Error sending confirmation: {str(e)}")
+            logger.error(traceback.format_exc())
             return False
