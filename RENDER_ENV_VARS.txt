@@ -1,0 +1,23 @@
+========================================
+RENDER ENVIRONMENT VARIABLES
+Copy these to Render Dashboard
+========================================
+
+SECRET_KEY=randomkey
+DEBUG=False
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=synexinnovation@gmail.com
+EMAIL_HOST_PASSWORD=hcun xtes nxyy ndgq
+DEFAULT_FROM_EMAIL=noreply@synexinnovations.com
+CONTACT_EMAIL_TO=synexinnovation@gmail.com
+
+========================================
+NOTES:
+========================================
+1. DATABASE_URL is automatically set by Render when you add PostgreSQL
+2. Change SECRET_KEY to a random string (use: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+3. Make sure DEBUG=False in production
+4. The EMAIL_HOST_PASSWORD is a Gmail App Password (not your regular password)

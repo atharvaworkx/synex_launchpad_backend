@@ -1,6 +1,7 @@
 """
 Views for handling contact form submissions with email integration
 """
+import logging
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -12,9 +13,11 @@ from .models import ContactSubmission
 from .serializers import ContactSubmissionSerializer
 from .email_service import ContactEmailService
 
+logger = logging.getLogger(__name__)
+
 
 @csrf_exempt
-@api_view(['POST'])
+@api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
 def submit_contact_form(request):
     """
@@ -44,14 +47,21 @@ def submit_contact_form(request):
         }
     }
     """
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        return Response(status=status.HTTP_200_OK)
+    
     try:
         if request.method == 'POST':
+            logger.info(f"Received contact form submission from {request.data.get('email', 'unknown')}")
+            
             # Validate and save the contact submission
             serializer = ContactSubmissionSerializer(data=request.data)
             
             if serializer.is_valid():
-                # Save to database
+                # Save to database first
                 contact = serializer.save()
+                logger.info(f"Contact submission saved with ID: {contact.id}")
                 
                 # Prepare email data
                 email_data = {
@@ -62,20 +72,23 @@ def submit_contact_form(request):
                 }
                 
                 # Try to send emails but don't fail if they don't send
+                company_email_sent = False
+                customer_email_sent = False
+                
                 try:
                     company_email_sent = ContactEmailService.send_contact_email(email_data)
+                    logger.info(f"Company email sent: {company_email_sent}")
                 except Exception as e:
-                    print(f"Error sending company email: {str(e)}")
-                    company_email_sent = False
+                    logger.error(f"Error sending company email: {str(e)}")
                 
                 try:
                     customer_email_sent = ContactEmailService.send_confirmation_email(
                         contact.email,
                         contact.name
                     )
+                    logger.info(f"Customer confirmation sent: {customer_email_sent}")
                 except Exception as e:
-                    print(f"Error sending confirmation email: {str(e)}")
-                    customer_email_sent = False
+                    logger.error(f"Error sending confirmation email: {str(e)}")
                 
                 response_data = {
                     'success': True,
@@ -90,6 +103,7 @@ def submit_contact_form(request):
                 return Response(response_data, status=status.HTTP_201_CREATED)
             
             else:
+                logger.warning(f"Validation failed: {serializer.errors}")
                 return Response({
                     'success': False,
                     'message': 'Validation failed',
@@ -102,7 +116,7 @@ def submit_contact_form(request):
         }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
     
     except Exception as e:
-        print(f"Unexpected error in submit_contact_form: {str(e)}")
+        logger.error(f"Unexpected error in submit_contact_form: {str(e)}", exc_info=True)
         return Response({
             'success': False,
             'message': 'An unexpected error occurred. Please try again later.',
