@@ -41,7 +41,7 @@ MIDDLEWARE = [
 ]
 
 # CSRF Configuration
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://synex-launchpad-three.vercel.app').split(',')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in config('CSRF_TRUSTED_ORIGINS', default='https://synex-launchpad-three.vercel.app').split(',')]
 
 ROOT_URLCONF = 'config.urls'
 
