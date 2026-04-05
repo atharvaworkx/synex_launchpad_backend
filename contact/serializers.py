@@ -5,8 +5,8 @@ from .models import ContactSubmission
 class ContactSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactSubmission
-        fields = ['id', 'name', 'email', 'company', 'message', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'name', 'email', 'company', 'message', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate_email(self, value):
         """Validate email field"""

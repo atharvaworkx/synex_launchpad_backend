@@ -15,7 +15,8 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-chang
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1,synex-launchpad-three.vercel.app').split(',')]
+ALLOWED_HOSTS = ['*']
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -40,8 +41,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CSRF Configuration
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in config('CSRF_TRUSTED_ORIGINS', default='https://synex-launchpad-three.vercel.app').split(',')]
+# CSRF Configuration - Disable for API
+CSRF_TRUSTED_ORIGINS = ['*']
 
 ROOT_URLCONF = 'config.urls'
 
@@ -109,8 +110,8 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=True, cast=bool)
+# CORS Configuration - Allow all origins for REST API
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
